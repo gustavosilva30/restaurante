@@ -36,18 +36,47 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
-import { mockInventory } from "@/lib/mock-data"
 import { AppLayout } from "@/components/layout/app-layout"
+
+interface InventoryItem {
+  id: string
+  name: string
+  unit: string
+  quantity: number
+  minQuantity: number
+  price: number
+  supplier: string
+}
 
 export default function EstoquePage() {
   const [searchTerm, setSearchTerm] = React.useState("")
+  const [inventory, setInventory] = React.useState<InventoryItem[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
 
-  const filteredInventory = mockInventory.filter((item) =>
+  // Busca dados dinamicamente do banco de dados na VPS
+  React.useEffect(() => {
+    async function loadInventory() {
+      try {
+        const res = await fetch("/api/inventory")
+        if (res.ok) {
+          const data = await res.json()
+          setInventory(data)
+        }
+      } catch (err) {
+        console.error("Erro ao carregar estoque:", err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadInventory()
+  }, [])
+
+  const filteredInventory = inventory.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const lowStockItems = mockInventory.filter((item) => item.quantity <= item.minQuantity)
-  const totalValue = mockInventory.reduce((sum, item) => sum + item.quantity * item.price, 0)
+  const lowStockItems = inventory.filter((item) => item.quantity <= item.minQuantity)
+  const totalValue = inventory.reduce((sum, item) => sum + item.quantity * item.price, 0)
 
   return (
     <AppLayout title="Controle de Estoque">
@@ -58,7 +87,7 @@ export default function EstoquePage() {
             <CardContent className="flex items-center justify-between p-4">
               <div>
                 <p className="text-sm text-muted-foreground">Total de Itens</p>
-                <p className="text-3xl font-bold">{mockInventory.length}</p>
+                <p className="text-3xl font-bold">{inventory.length}</p>
               </div>
               <Package className="h-8 w-8 text-primary" />
             </CardContent>
