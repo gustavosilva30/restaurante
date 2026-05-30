@@ -37,8 +37,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Porta exposta do contêiner
-PORT=3000
-ENV PORT=$PORT
+ENV PORT=3000
 EXPOSE 3000
 
 # Cria usuário não-root por segurança
