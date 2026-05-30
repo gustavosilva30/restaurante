@@ -25,6 +25,7 @@ ENV NODE_ENV=production
 
 # Executa a compilação
 RUN \
+  npx prisma generate && \
   if [ -f pnpm-lock.yaml ]; then npm install -g pnpm && pnpm run build; \
   else npm run build; \
   fi
