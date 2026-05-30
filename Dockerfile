@@ -8,7 +8,7 @@ COPY package.json package-lock.json* pnpm-lock.yaml* ./
 
 # Instala dependências de forma limpa
 RUN \
-  if [ -f pnpm-lock.yaml ]; then npm install -g pnpm && pnpm i --frozen-lockfile; \
+  if [ -f pnpm-lock.yaml ]; then npm install -g pnpm && pnpm i --no-frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
   else npm install; \
   fi
