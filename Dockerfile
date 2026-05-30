@@ -49,6 +49,8 @@ RUN adduser --system --uid 1001 nextjs
 
 # Copia os arquivos públicos e de build standalone gerados pelo Next.js
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 # Define permissões corretas para cache do Next.js
 RUN mkdir .next
