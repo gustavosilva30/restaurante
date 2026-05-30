@@ -1,0 +1,207 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. Tabela de Empresas (Tenants)
+model Company {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String
+  logo                  String?                @default("/placeholder-logo.png")
+  domain                String                 @unique
+  plan                  String                 @default("basic")
+  address               String?
+  phone                 String?
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  users                 User[]
+  categories            Category[]
+  products              Product[]
+  tables                Table[]
+  orders                Order[]
+  drivers               Driver[]
+  inventory             Inventory[]
+  financialTransactions FinancialTransaction[]
+
+  @@map("companies")
+}
+
+// 2. Tabela de Usuários
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         String   @default("waiter")
+  avatar       String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("users")
+}
+
+// 3. Tabela de Categorias
+model Category {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String    @map("company_id") @db.Uuid
+  name      String
+  icon      String?
+  color     String    @default("#10b981")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products  Product[]
+
+  @@map("categories")
+}
+
+// 4. Tabela de Produtos
+model Product {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String      @map("company_id") @db.Uuid
+  categoryId  String      @map("category_id") @db.Uuid
+  name        String
+  description String?
+  price       Decimal     @default(0.00) @db.Decimal(10, 2)
+  image       String?     @default("/placeholder-food.png")
+  available   Boolean     @default(true)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems  OrderItem[]
+
+  @@map("products")
+}
+
+// 5. Tabela de Mesas
+model Table {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String    @map("company_id") @db.Uuid
+  number          Int
+  capacity        Int       @default(4)
+  status          String    @default("free")
+  x               Int       @default(50)
+  y               Int       @default(50)
+  reservationName String?   @map("reservation_name")
+  reservationTime DateTime? @map("reservation_time") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  orders          Order[]
+
+  @@unique([companyId, number])
+  @@map("tables")
+}
+
+// 6. Tabela de Pedidos
+model Order {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderCode      String           @unique @map("order_code")
+  companyId      String           @map("company_id") @db.Uuid
+  tableId        String?          @map("table_id") @db.Uuid
+  type           String           @default("table")
+  status         String           @default("pending")
+  subtotal       Decimal          @default(0.00) @db.Decimal(10, 2)
+  deliveryFee    Decimal          @default(0.00) @map("delivery_fee") @db.Decimal(10, 2)
+  total          Decimal          @default(0.00) @db.Decimal(10, 2)
+  paymentMethod  String?          @map("payment_method")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  table          Table?           @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  orderItems     OrderItem[]
+  deliveryDetail DeliveryDetail?
+
+  @@map("orders")
+}
+
+// 7. Itens do Pedido
+model OrderItem {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId   String   @map("order_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  quantity  Int      @default(1)
+  price     Decimal  @db.Decimal(10, 2)
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@map("order_items")
+}
+
+// 8. Tabela de Entregadores
+model Driver {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String           @map("company_id") @db.Uuid
+  name            String
+  phone           String
+  status          String           @default("available")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  deliveryDetails DeliveryDetail[]
+
+  @@map("drivers")
+}
+
+// 9. Tabela de Detalhes da Entrega
+model DeliveryDetail {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId           String    @unique @map("order_id") @db.Uuid
+  customerName      String    @map("customer_name")
+  customerPhone     String    @map("customer_phone")
+  address           String
+  driverId          String?   @map("driver_id") @db.Uuid
+  estimatedDelivery DateTime? @map("estimated_delivery") @db.Timestamptz
+
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  driver            Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@map("delivery_details")
+}
+
+// 10. Tabela de Insumos (Estoque)
+model Inventory {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  name        String
+  unit        String
+  quantity    Decimal  @default(0.00) @db.Decimal(10, 2)
+  minQuantity Decimal  @default(0.00) @map("min_quantity") @db.Decimal(10, 2)
+  price       Decimal  @default(0.00) @db.Decimal(10, 2)
+  supplier    String?
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("inventory")
+}
+
+// 11. Tabela Financeira
+model FinancialTransaction {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String    @map("company_id") @db.Uuid
+  description String
+  type        String
+  value       Decimal   @default(0.00) @db.Decimal(10, 2)
+  dueDate     DateTime  @map("due_date") @db.Date
+  paymentDate DateTime? @map("payment_date") @db.Date
+  status      String    @default("pending")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("financial_transactions")
+}
