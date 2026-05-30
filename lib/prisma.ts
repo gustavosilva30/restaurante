@@ -13,7 +13,7 @@ if (process.env.DATABASE_URL) {
     connectionString: process.env.DATABASE_URL,
     max: 10, // Tamanho ideal de pool para VPS de médio porte
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 15000, // Aumentado para tolerar conexões remotas WAN/Internet
   })
   const adapter = new PrismaPg(pool)
   prismaInstance = new PrismaClient({
