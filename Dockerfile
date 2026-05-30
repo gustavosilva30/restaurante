@@ -8,7 +8,7 @@ COPY package.json package-lock.json* pnpm-lock.yaml* ./
 
 # Instala dependências de forma limpa
 RUN \
-  if [ -f pnpm-lock.yaml ]; then corepack enable && pnpm i --frozen-lockfile; \
+  if [ -f pnpm-lock.yaml ]; then npm install -g pnpm && pnpm i --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
   else npm install; \
   fi
@@ -25,7 +25,7 @@ ENV NODE_ENV=production
 
 # Executa a compilação
 RUN \
-  if [ -f pnpm-lock.yaml ]; then corepack enable && pnpm run build; \
+  if [ -f pnpm-lock.yaml ]; then npm install -g pnpm && pnpm run build; \
   else npm run build; \
   fi
 
