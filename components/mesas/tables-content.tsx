@@ -99,7 +99,12 @@ const quickBillingMenu = [
   { name: "Petit Gateau com Gelato", price: 29.00 },
 ]
 
-export function TablesContent() {
+interface TablesContentProps {
+  initialTables: Table[]
+  companyId: string
+}
+
+export function TablesContent({ initialTables, companyId }: TablesContentProps) {
   const [tables, setTables] = React.useState<Table[]>(initialTables)
   const [selectedTableId, setSelectedTableId] = React.useState<string | null>(null)
   const [activeArea, setActiveArea] = React.useState<RoomArea>("main")
@@ -166,7 +171,7 @@ export function TablesContent() {
     setDialogOpen(true)
   }
 
-  const handleUpdateTable = (e: React.FormEvent) => {
+  const handleUpdateTable = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingTable) return
 
@@ -179,33 +184,40 @@ export function TablesContent() {
       return
     }
 
+    const updated = {
+      ...editingTable,
+      number: editTableNumber,
+      capacity: editTableCapacity,
+      shape: editTableShape,
+      area: editTableArea,
+      companyId,
+    }
+
     setTables((prev) =>
-      prev.map((t) =>
-        t.id === editingTable.id
-          ? {
-              ...t,
-              number: editTableNumber,
-              capacity: editTableCapacity,
-              shape: editTableShape,
-              area: editTableArea,
-            }
-          : t
-      )
+      prev.map((t) => (t.id === editingTable.id ? updated : t))
     )
     setIsEditTableOpen(false)
     setEditingTable(null)
+
+    await fetch("/api/tables", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updated),
+    })
   }
 
-  const handleDeleteTable = (tableId: string) => {
+  const handleDeleteTable = async (tableId: string) => {
     if (!editingTable) return
     if (confirm(`Tem certeza que deseja excluir permanentemente a Mesa ${editingTable.number}?`)) {
       setTables((prev) => prev.filter((t) => t.id !== tableId))
       setIsEditTableOpen(false)
       setEditingTable(null)
+
+      await fetch(`/api/tables?id=${tableId}`, { method: "DELETE" })
     }
   }
 
-  const handleAddTableSubmit = (e: React.FormEvent) => {
+  const handleAddTableSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     // check duplicate
@@ -229,10 +241,16 @@ export function TablesContent() {
 
     setTables((prev) => [...prev, newTable])
     setIsAddTableOpen(false)
+
+    await fetch("/api/tables", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...newTable, companyId }),
+    })
   }
 
   // drag-and-drop end callback that saves updated position % in state
-  const handleDragEnd = (tableId: string, event: any, info: any) => {
+  const handleDragEnd = async (tableId: string, event: any, info: any) => {
     if (!containerRef.current) return
     const containerRect = containerRef.current.getBoundingClientRect()
     
@@ -247,32 +265,54 @@ export function TablesContent() {
     xPercent = Math.round(xPercent)
     yPercent = Math.round(yPercent)
 
+    let draggedTable: Table | null = null
+
     setTables((prev) =>
-      prev.map((t) => (t.id === tableId ? { ...t, x: xPercent, y: yPercent } : t))
+      prev.map((t) => {
+        if (t.id === tableId) {
+          draggedTable = { ...t, x: xPercent, y: yPercent }
+          return draggedTable
+        }
+        return t
+      })
     )
+
+    if (draggedTable) {
+      await fetch("/api/tables", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...draggedTable, companyId }),
+      })
+    }
   }
 
-  const handleOpenTable = () => {
+  const handleOpenTable = async () => {
     if (!selectedTable) return
+    const updated = {
+      ...selectedTable,
+      status: "occupied" as TableStatus,
+      currentOrder: `ORD-${Math.floor(Math.random() * 900) + 100}`,
+      totalAmount: 0,
+      seatedCount: openingGuests,
+      itemsConsumed: [],
+    }
+
     setTables((prev) =>
-      prev.map((t) =>
-        t.id === selectedTable.id
-          ? {
-              ...t,
-              status: "occupied",
-              currentOrder: `ORD-${Math.floor(Math.random() * 900) + 100}`,
-              totalAmount: 0,
-              seatedCount: openingGuests,
-              itemsConsumed: [],
-            }
-          : t
-      )
+      prev.map((t) => (t.id === selectedTable.id ? updated : t))
     )
     setDialogOpen(false)
+
+    await fetch("/api/tables", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...updated, companyId }),
+    })
   }
 
-  const handleAddConsumptionItem = (itemName: string, itemPrice: number) => {
+  const handleAddConsumptionItem = async (itemName: string, itemPrice: number) => {
     if (!selectedTableId) return
+    let updatedTable: Table | null = null
+
     setTables((prev) =>
       prev.map((t) => {
         if (t.id === selectedTableId) {
@@ -286,19 +326,30 @@ export function TablesContent() {
           }
 
           const newTotal = currentItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
-          return {
+          updatedTable = {
             ...t,
             itemsConsumed: currentItems,
             totalAmount: Number(newTotal.toFixed(2)),
           }
+          return updatedTable
         }
         return t
       })
     )
+
+    if (updatedTable) {
+      await fetch("/api/tables", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...updatedTable, companyId }),
+      })
+    }
   }
 
-  const handleRemoveConsumptionItem = (itemName: string) => {
+  const handleRemoveConsumptionItem = async (itemName: string) => {
     if (!selectedTableId) return
+    let updatedTable: Table | null = null
+
     setTables((prev) =>
       prev.map((t) => {
         if (t.id === selectedTableId) {
@@ -313,45 +364,82 @@ export function TablesContent() {
           }
 
           const newTotal = currentItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
-          return {
+          updatedTable = {
             ...t,
             itemsConsumed: currentItems,
             totalAmount: Number(newTotal.toFixed(2)),
           }
+          return updatedTable
         }
         return t
       })
     )
+
+    if (updatedTable) {
+      await fetch("/api/tables", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...updatedTable, companyId }),
+      })
+    }
   }
 
-  const handleRequestBill = () => {
+  const handleRequestBill = async () => {
     if (!selectedTableId) return
+    let updatedTable: Table | null = null
+
     setTables((prev) =>
-      prev.map((t) => (t.id === selectedTableId ? { ...t, status: "closing" } : t))
+      prev.map((t) => {
+        if (t.id === selectedTableId) {
+          updatedTable = { ...t, status: "closing" as TableStatus }
+          return updatedTable
+        }
+        return t
+      })
     )
     setDialogOpen(false)
+
+    if (updatedTable) {
+      await fetch("/api/tables", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...updatedTable, companyId }),
+      })
+    }
   }
 
-  const handleCloseAndFreeTable = () => {
+  const handleCloseAndFreeTable = async () => {
     if (!selectedTableId) return
+    let updatedTable: Table | null = null
+
     setTables((prev) =>
-      prev.map((t) =>
-        t.id === selectedTableId
-          ? {
-              ...t,
-              status: "free",
-              currentOrder: undefined,
-              totalAmount: undefined,
-              seatedCount: undefined,
-              itemsConsumed: undefined,
-              reservationName: undefined,
-              reservationTime: undefined,
-              reservationPhone: undefined,
-            }
-          : t
-      )
+      prev.map((t) => {
+        if (t.id === selectedTableId) {
+          updatedTable = {
+            ...t,
+            status: "free" as TableStatus,
+            currentOrder: undefined,
+            totalAmount: undefined,
+            seatedCount: undefined,
+            itemsConsumed: undefined,
+            reservationName: undefined,
+            reservationTime: undefined,
+            reservationPhone: undefined,
+          }
+          return updatedTable
+        }
+        return t
+      })
     )
     setDialogOpen(false)
+
+    if (updatedTable) {
+      await fetch("/api/tables", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...updatedTable, companyId }),
+      })
+    }
   }
 
   const handleOpenReservation = () => {
@@ -364,24 +452,36 @@ export function TablesContent() {
     setReservationOpen(true)
   }
 
-  const handleSaveReservation = (e: React.FormEvent) => {
+  const handleSaveReservation = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedTableId || !resName || !resTime) return
+    let updatedTable: Table | null = null
+
     setTables((prev) =>
-      prev.map((t) =>
-        t.id === selectedTableId
-          ? {
-              ...t,
-              status: "reserved",
-              reservationName: resName,
-              reservationTime: resTime,
-              reservationPhone: resPhone,
-              capacity: resSize,
-            }
-          : t
-      )
+      prev.map((t) => {
+        if (t.id === selectedTableId) {
+          updatedTable = {
+            ...t,
+            status: "reserved" as TableStatus,
+            reservationName: resName,
+            reservationTime: resTime,
+            reservationPhone: resPhone,
+            capacity: resSize,
+          }
+          return updatedTable
+        }
+        return t
+      })
     )
     setReservationOpen(false)
+
+    if (updatedTable) {
+      await fetch("/api/tables", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...updatedTable, companyId }),
+      })
+    }
   }
 
   // Dynamic chairs positioning helper for realistic geometric table cards
