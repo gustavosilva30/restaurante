@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma"
 import { AppLayout } from "@/components/layout/app-layout"
 import { FinanceiroClient } from "@/components/financeiro/financeiro-client"
 
+export const dynamic = "force-dynamic"
+
 export default async function FinanceiroPage() {
   // Carregamos a empresa demo populada pelo seeder
   const company = await prisma.company.findUnique({

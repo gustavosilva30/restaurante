@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma"
 import { AppLayout } from "@/components/layout/app-layout"
 import { CardapioClient } from "@/components/cardapio/cardapio-client"
 
+export const dynamic = "force-dynamic"
+
 export default async function CardapioPage() {
   // Em um ambiente SaaS de produção, o domínio seria resolvido dinamicamente.
   // Carregamos a empresa demo populada pelo seeder.

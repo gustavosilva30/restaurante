@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma"
 import { AppLayout } from "@/components/layout/app-layout"
 import { TablesContent } from "@/components/mesas/tables-content"
 
+export const dynamic = "force-dynamic"
+
 export default async function MesasPage() {
   // Carregamos a empresa demo populada pelo seeder
   const company = await prisma.company.findUnique({
